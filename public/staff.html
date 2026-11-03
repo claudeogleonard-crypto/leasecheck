@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LeaseCheck Staff</title>
+  <meta name="robots" content="noindex" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23cfb87c'/%3E%3Cpath d='M9 17l5 5 9-11' stroke='%23141412' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="inner">
+      <a class="brand" href="/staff">
+        <span class="brand-mark" aria-hidden="true">✓</span>
+        <span><b>LeaseCheck · Staff</b><small>Off-Campus Housing &amp; Neighborhood Relations</small></span>
+      </a>
+      <nav class="nav row"><a href="/">Student page</a><button id="logout" class="btn small hidden" type="button">Sign out</button></nav>
+    </div>
+  </header>
+
+  <main>
+    <section id="login" class="card narrow hidden" style="margin:40px auto">
+      <h1 style="font-size:24px">Staff sign-in</h1>
+      <form id="login-form">
+        <div class="field"><label for="pw">Staff password</label><input id="pw" type="password" autocomplete="current-password" required /></div>
+        <div id="login-error" class="error hidden" role="alert"></div>
+        <button class="btn primary" type="submit">Sign in</button>
+      </form>
+    </section>
+
+    <section id="dash" class="hidden">
+      <div class="row" style="margin-bottom:12px">
+        <h1 style="margin:0">Attorney queue</h1>
+        <span class="spacer"></span>
+        <span id="updated" class="hint"></span>
+        <button id="refresh" class="btn small" type="button">Refresh</button>
+      </div>
+      <div id="stats" class="stats"></div>
+
+      <div class="card">
+        <div class="row" style="margin-bottom:12px">
+          <h2 style="margin:0">Queue</h2>
+          <span class="spacer"></span>
+          <label for="status-filter" class="hint" style="margin:0">Show</label>
+          <select id="status-filter" style="width:auto">
+            <option value="open">Open (new, scheduled, in review)</option>
+            <option value="new">New</option>
+            <option value="scheduled">Scheduled</option>
+            <option value="in_review">In review</option>
+            <option value="resolved">Resolved</option>
+            <option value="all">All</option>
+          </select>
+        </div>
+        <div id="queue"></div>
+      </div>
+
+      <div class="card">
+        <h2>Recent reviews</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Submitted</th><th>Student</th><th>Property</th><th>Risk</th><th>Attorney</th><th>Status</th><th></th></tr></thead>
+          <tbody id="reviews"></tbody>
+        </table></div>
+      </div>
+
+      <div class="card">
+        <h2>Notifications</h2>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Sent</th><th>Type</th><th>To</th><th>Subject</th><th>Delivery</th></tr></thead>
+          <tbody id="notifications"></tbody>
+        </table></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="drawer-backdrop" class="drawer-backdrop hidden"></div>
+  <aside id="drawer" class="drawer hidden" role="dialog" aria-modal="true" aria-labelledby="drawer-title">
+    <div class="row" style="margin-bottom:12px">
+      <h2 id="drawer-title" style="margin:0">Review</h2>
+      <span class="spacer"></span>
+      <button id="drawer-close" class="btn small" type="button">Close</button>
+    </div>
+    <div id="drawer-body"></div>
+  </aside>
+
+  <script type="module" src="/staff.js"></script>
+</body>
+</html>

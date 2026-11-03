@@ -1,0 +1,21 @@
+{
+  "name": "leasecheck",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LeaseCheck: AI-assisted lease review for CU Boulder Off-Campus Housing",
+  "type": "module",
+  "scripts": {
+    "dev": "netlify dev",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test tests/*.test.mts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
+    "@netlify/blobs": "^11.1.7"
+  },
+  "devDependencies": {
+    "@netlify/functions": "^6.0.3",
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}
