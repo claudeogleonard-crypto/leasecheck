@@ -10,6 +10,7 @@ export const inputsStore = () => store("lease-inputs");
 export const queueStore = () => store("attorney-queue");
 export const appointmentsStore = () => store("appointments");
 export const notificationsStore = () => store("notifications");
+export const locksStore = () => store("run-locks");
 
 export type AgentName = "extraction" | "risk" | "triage";
 export type StepName = AgentName | "automation";
@@ -80,7 +81,8 @@ export interface ReviewRecord {
   id: string;
   createdAt: string;
   updatedAt: string;
-  status: "created" | "running" | "reviewed" | "complete" | "failed";
+  status: "queued" | "running" | "reviewed" | "complete" | "failed";
+  attempt: number; // increments on each retry; the background run only acts on the current attempt
   steps: Record<StepName, { status: StepStatus; startedAt?: string; finishedAt?: string; error?: string }>;
   input: {
     source: "text" | "pdf";

@@ -1,8 +1,10 @@
-// POST /api/reviews: accepts a lease (pasted text or PDF, converted to text), stores it, and returns the review id.
+// POST /api/reviews: accepts a lease (pasted text or PDF, converted to text), stores it,
+// starts the background review, and returns the review id for polling.
 import type { Config, Context } from "@netlify/functions";
 import { randomUUID } from "node:crypto";
 import { extractText, getDocumentProxy } from "unpdf";
 import { error, json } from "../lib/http.mts";
+import { triggerRun } from "../lib/pipeline.mts";
 import { inputsStore, now, saveReview, type ReviewRecord } from "../lib/store.mts";
 
 const MAX_TEXT_CHARS = 200_000;
@@ -58,7 +60,8 @@ export default async (req: Request, _context: Context) => {
     id,
     createdAt: now(),
     updatedAt: now(),
-    status: "created",
+    status: "queued",
+    attempt: 1,
     steps: {
       extraction: { status: "pending" },
       risk: { status: "pending" },
@@ -77,8 +80,16 @@ export default async (req: Request, _context: Context) => {
     traces: {},
   };
   await saveReview(record);
-  // The browser now runs the three agents in order: /api/agents/extraction, /risk, /triage.
-  return json({ id }, 201);
+  try {
+    await triggerRun(req, id, 1); // background function runs all three agents + automation
+  } catch (e) {
+    console.error(e);
+    record.status = "failed";
+    record.error = "Could not start the review. Please try again.";
+    await saveReview(record);
+    return error(record.error, 502);
+  }
+  return json({ id }, 202);
 };
 
 export const config: Config = {

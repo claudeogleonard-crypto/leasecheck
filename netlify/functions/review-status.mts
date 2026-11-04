@@ -1,8 +1,8 @@
-// GET /api/reviews/:id: polled by the student page. Review IDs are random UUIDs.
+// GET /api/reviews/:id: polled by the student page (live agent timeline). Review IDs are random UUIDs.
 import type { Config, Context } from "@netlify/functions";
 import { error, json } from "../lib/http.mts";
 import { getReview } from "../lib/store.mts";
-import { publicRecord } from "../lib/agent-endpoint.mts";
+import { publicRecord } from "../lib/pipeline.mts";
 
 export default async (_req: Request, context: Context) => {
   const id = context.params.id;

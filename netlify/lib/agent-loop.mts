@@ -1,7 +1,7 @@
 // Shared agent loop: Claude decides which tools to call. We run them, return results, and repeat
 // until the agent calls its finish tool, hits MAX_TURNS, or runs out of time.
 import Anthropic from "@anthropic-ai/sdk";
-import { AGENT_DEADLINE_MS, EFFORT, MAX_TURNS, MODEL, REQUEST_TIMEOUT_MS } from "./config.mts";
+import { AGENT_DEADLINE_MS, EFFORT, MAX_RETRIES, MAX_TURNS, MODEL, REQUEST_TIMEOUT_MS } from "./config.mts";
 
 export interface AgentTool {
   name: string;
@@ -38,8 +38,7 @@ const short = (s: string, n = 240) => (s.length > n ? `${s.slice(0, n - 1)}…` 
 let sharedClient: Anthropic | null = null;
 function client() {
   // The SDK reads ANTHROPIC_API_KEY from process.env. It is never logged or returned to the browser.
-  // No automatic retries: a retry could push the function past Netlify's time limit.
-  sharedClient ??= new Anthropic({ timeout: REQUEST_TIMEOUT_MS, maxRetries: 0 });
+  sharedClient ??= new Anthropic({ timeout: REQUEST_TIMEOUT_MS, maxRetries: MAX_RETRIES });
   return sharedClient;
 }
 
@@ -87,7 +86,7 @@ export async function runAgent(
         messages,
       });
     } catch (e) {
-      // A slow model call ends the run safely instead of letting the function get cut off.
+      // A model call that times out (after retries) ends the run safely as needs-human-review.
       if (e instanceof Anthropic.APIConnectionTimeoutError) return stop("a model call took too long", turn);
       throw e;
     }
