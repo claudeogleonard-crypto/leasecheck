@@ -1,4 +1,4 @@
-import { renderResults } from "/render.js";
+import { AGENTS, el, renderResults, renderTimeline, statusText, stepItem } from "/render.js";
 
 const $ = (s) => document.querySelector(s);
 const MAX_PDF = 4 * 1024 * 1024;
@@ -49,7 +49,6 @@ async function handleFile(file) {
     pdf = { base64: String(dataUrl).split(",")[1], name: file.name };
     $("#file-name").textContent = `Selected: ${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
   } else if (file.type.startsWith("text/") || file.name.toLowerCase().endsWith(".txt")) {
-    // Text files go into the paste box so the student can see them.
     $("#lease-text").value = await file.text();
     pdf = null;
     $("#tab-paste").click();
@@ -89,7 +88,7 @@ $("#lease-form").addEventListener("submit", async (e) => {
     if (res.status === 429) throw new Error("Too many submissions. Please wait a minute and try again.");
     if (!res.ok) throw new Error(data.error || `Something went wrong (HTTP ${res.status}).`);
     history.pushState({}, "", `/?review=${data.id}`);
-    startReview(data.id);
+    openReview(data.id);
   } catch (err) {
     showFormError(err.message);
   } finally {
@@ -98,56 +97,153 @@ $("#lease-form").addEventListener("submit", async (e) => {
   }
 });
 
-// Review view and polling
-let pollTimer = null;
-let rendered = false;
+// ---------- Review: run the three agents in order, streaming each one's steps ----------
 
-function startReview(id) {
+const agentBox = (key) => document.querySelector(`.tl-agent[data-agent="${key}"]`);
+
+function setAgentState(key, state, trace) {
+  const box = agentBox(key);
+  box.dataset.s = state;
+  box.querySelector(".tl-status").textContent = statusText(state, trace);
+}
+
+function showAgentError(key, message, retry) {
+  const box = agentBox(key).querySelector(".tl-error");
+  box.replaceChildren(el("span", {}, message, " "), retry ? el("button", { class: "btn small", type: "button", onclick: retry }, "Try again") : "");
+  box.classList.remove("hidden");
+}
+
+async function fetchRecord(id) {
+  const res = await fetch(`/api/reviews/${id}`, { cache: "no-store" });
+  if (res.status === 404) throw new Error("We couldn't find that review.");
+  if (!res.ok) throw new Error(`Couldn't load the review (HTTP ${res.status}).`);
+  return res.json();
+}
+
+/** Runs one agent function and streams its NDJSON steps into the timeline. Resolves with the saved record. */
+async function runAgentStream(id, key) {
+  setAgentState(key, "running");
+  const list = agentBox(key).querySelector(".tl-steps");
+  list.replaceChildren();
+  agentBox(key).querySelector(".tl-error").classList.add("hidden");
+  const trace = [];
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 75_000); // the function itself stops by ~60s
+  let res;
+  try {
+    res = await fetch(`/api/agents/${key}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id }), signal: controller.signal });
+  } catch (e) {
+    clearTimeout(timer);
+    throw new Error(e.name === "AbortError" ? "The agent took too long to respond." : "Network error. Check your connection.");
+  }
+  if (!res.ok || !res.body) {
+    clearTimeout(timer);
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `The agent request failed (HTTP ${res.status}).`);
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let final = null;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim();
+        buf = buf.slice(nl + 1);
+        if (!line) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "step") {
+          trace.push(ev.step);
+          list.append(stepItem(ev.step));
+          setAgentState(key, "running", trace);
+        } else if (ev.type === "done") final = ev.record;
+        else if (ev.type === "error") throw new Error(ev.message);
+      }
+    }
+  } catch (e) {
+    throw new Error(e.name === "AbortError" ? "The agent took too long to respond." : e.message);
+  } finally {
+    clearTimeout(timer);
+  }
+  if (!final) throw new Error("The agent stopped before finishing. Please try again.");
+  setAgentState(key, "done", trace);
+  return final;
+}
+
+async function openReview(id) {
   $("#submit-view").classList.add("hidden");
   $("#review-view").classList.remove("hidden");
-  rendered = false;
+  $("#review-error").classList.add("hidden");
+  $("#results").replaceChildren();
   window.scrollTo(0, 0);
-  poll(id, 0);
-}
-
-async function poll(id, attempt) {
-  clearTimeout(pollTimer);
+  let r;
   try {
-    const res = await fetch(`/api/reviews/${id}`, { cache: "no-store" });
-    if (res.status === 404) return showReviewError("We couldn't find that review. It may have been removed.");
-    if (!res.ok) throw new Error();
-    const r = await res.json();
-    update(r);
-    const finished = r.status === "failed" || r.status === "complete" || (r.status === "reviewed" && r.steps.automation.status === "failed");
-    if (finished) return;
-  } catch {
-    // Network error: keep polling with backoff.
+    r = await fetchRecord(id);
+  } catch (e) {
+    return showReviewError(e.message);
   }
-  if (attempt > 300) return showReviewError("This is taking longer than expected. Refresh the page to check again.");
-  pollTimer = setTimeout(() => poll(id, attempt + 1), attempt < 30 ? 2000 : 5000);
+  renderTimeline($("#timeline"), r);
+  if (r.triage) showResults(r);
+  await continueReview(id, r);
 }
 
-function update(r) {
-  for (const li of document.querySelectorAll(".steps li")) {
-    const s = r.steps[li.dataset.step]?.status || "pending";
-    li.dataset.s = s;
-    const dot = li.querySelector(".dot");
-    if (!dot.dataset.n) dot.dataset.n = dot.textContent; // remember the step number
-    dot.textContent = s === "done" ? "✓" : s === "failed" ? "!" : s === "running" ? "" : dot.dataset.n;
+async function continueReview(id, r) {
+  for (const a of AGENTS) {
+    const st = r.steps[a.key].status;
+    if (st === "done") continue;
+    if (st === "failed" || (st === "running" && r.steps[a.key].startedAt && Date.now() - Date.parse(r.steps[a.key].startedAt) > 70_000)) {
+      // Don't silently re-spend on reload: offer a retry.
+      setAgentState(a.key, "failed");
+      return showAgentError(a.key, r.steps[a.key].error || "This step didn't finish.", () => retryFrom(id));
+    }
+    try {
+      r = await runAgentStream(id, a.key);
+    } catch (e) {
+      setAgentState(a.key, "failed");
+      return showAgentError(a.key, e.message, () => retryFrom(id));
+    }
   }
-  if (r.status === "failed") {
-    $("#review-title").textContent = "We couldn't finish this review";
-    showReviewError(r.error || "Something went wrong. Please try again.");
-    return;
+  showResults(r);
+  await waitForAutomation(id);
+}
+
+async function retryFrom(id) {
+  document.querySelectorAll(".tl-error").forEach((x) => x.classList.add("hidden"));
+  try {
+    const r = await fetchRecord(id);
+    for (const a of AGENTS) if (r.steps[a.key].status !== "done") r.steps[a.key].status = "pending";
+    await continueReview(id, r);
+  } catch (e) {
+    showReviewError(e.message);
   }
-  if (r.triage && (!rendered || r.automation)) {
-    $("#review-title").textContent = "Your lease review";
-    $("#review-sub").textContent = `Reviewed ${new Date(r.createdAt).toLocaleString()}. Bookmark this page to come back to it.`;
-    const results = $("#results");
-    results.replaceChildren(renderResults(r));
-    rendered = true;
-    if (r.automation) $("#progress").classList.add("hidden");
+}
+
+async function waitForAutomation(id) {
+  setAgentState("automation", "running");
+  for (let i = 0; i < 30; i++) {
+    let r;
+    try { r = await fetchRecord(id); } catch { r = null; }
+    if (r?.automation) {
+      setAgentState("automation", "done");
+      return showResults(r);
+    }
+    if (r?.steps.automation.status === "failed") break;
+    await new Promise((res) => setTimeout(res, 2000));
   }
+  setAgentState("automation", "failed");
+  showAgentError("automation", "Your review is complete, but the follow-up step (queueing and notifications) didn't confirm. Off-Campus Housing staff can still see your review.");
+}
+
+function showResults(r) {
+  $("#review-title").textContent = "Your lease review";
+  $("#review-sub").textContent = `Reviewed ${new Date(r.createdAt).toLocaleString()}. Bookmark this page to come back to it.`;
+  $("#results").replaceChildren(renderResults(r));
 }
 
 function showReviewError(msg) {
@@ -158,5 +254,5 @@ function showReviewError(msg) {
 
 // Deep link: /?review=<id>
 const existing = new URLSearchParams(location.search).get("review");
-if (existing) startReview(existing);
+if (existing) openReview(existing);
 window.addEventListener("popstate", () => location.reload());

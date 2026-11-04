@@ -1,4 +1,4 @@
-import { el, fmtDate, money, renderResults, riskBadge } from "/render.js";
+import { el, fmtDate, renderResults, renderTimeline, riskBadge } from "/render.js";
 
 const $ = (s) => document.querySelector(s);
 const KEY = "leasecheck-staff-key";
@@ -86,14 +86,13 @@ function queueCard(q) {
   return el("div", { class: `queue-item p${q.priority}` },
     el("div", { class: "row" },
       riskBadge(q.risk),
-      el("span", { class: "badge neutral" }, q.urgency),
       el("b", {}, q.address || "Address not stated"),
       el("span", { class: "spacer" }),
       el("span", { class: "hint" }, `Added ${fmtDate(q.createdAt)}`)
     ),
     el("div", { style: "margin:8px 0" },
       el("div", {}, el("b", {}, "Student: "), q.studentName || "Anonymous", q.studentEmail ? " · " : "", q.studentEmail ? el("a", { href: `mailto:${q.studentEmail}` }, q.studentEmail) : ""),
-      el("div", {}, el("b", {}, "Rent: "), money(q.monthlyRent), " · ", el("b", {}, "Score: "), `${q.riskScore}/100`),
+      el("div", {}, el("b", {}, "Rent: "), q.monthlyRent || "Not stated", " · ", el("b", {}, "Priority: "), String(q.priority)),
       el("div", {}, el("b", {}, "Why: "), q.reason),
       el("div", {}, el("b", {}, "Top issues: "), q.topFlags.map((f) => f.title).join("; ") || "—"),
       el("div", {}, el("b", {}, "Suggested slot: "),
@@ -120,7 +119,7 @@ function renderReviews() {
       el("td", {}, r.studentName || "—"),
       el("td", {}, r.address || "—"),
       el("td", {}, r.risk ? riskBadge(r.risk) : "—"),
-      el("td", {}, r.attorney === null ? "—" : r.attorney ? "Yes" : "No"),
+      el("td", {}, r.route === null ? "—" : r.route === "attorney_review" ? "Attorney review" : "Summary only"),
       el("td", {}, r.status === "failed" ? el("span", { title: r.error || "" }, "failed") : r.status),
       el("td", {}, el("button", { class: "btn small", type: "button", onclick: () => openReview(r.id) }, "Open"))
     )
@@ -155,7 +154,10 @@ async function openReview(id) {
       el("div", {}, el("a", { href: `/?review=${r.id}`, target: "_blank", rel: "noopener" }, "Open student view ↗")),
       r.error ? el("div", { class: "error", style: "margin-top:8px" }, r.error) : null
     );
-    $("#drawer-body").replaceChildren(meta, renderResults(r, { staff: true }));
+    const tl = el("div");
+    renderTimeline(tl, r);
+    tl.querySelectorAll(".tl-error").forEach((x) => x.remove());
+    $("#drawer-body").replaceChildren(meta, renderResults(r, { staff: true }), el("section", { class: "card" }, el("h2", {}, "Agent timeline"), tl));
   } catch (e) {
     $("#drawer-body").replaceChildren(el("p", { class: "error" }, e.message));
   }

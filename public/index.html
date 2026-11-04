@@ -23,7 +23,7 @@
     <!-- Submit view -->
     <section id="submit-view">
       <h1>Check your lease before you sign</h1>
-      <p class="lede">Paste or upload your lease. LeaseCheck pulls out the key terms, flags risky clauses and Boulder occupancy issues, and tells you what to ask your landlord. If your lease looks high risk, we'll connect you with a Student Legal Services attorney.</p>
+      <p class="lede">Paste or upload your lease. Three AI agents read it: they pull out the key terms, flags risky clauses and Boulder occupancy issues, and tells you what to ask your landlord. If your lease looks high risk, we'll connect you with a Student Legal Services attorney.</p>
 
       <form id="lease-form" class="card" novalidate>
         <div class="tabs" role="tablist" aria-label="How to provide your lease">
@@ -73,7 +73,7 @@
         <div id="form-error" class="error hidden" role="alert"></div>
         <div class="row" style="margin-top:12px">
           <button id="submit-btn" class="btn primary" type="submit">Review my lease</button>
-          <span class="hint">Takes about 1–3 minutes.</span>
+          <span class="hint">Takes about 1–2 minutes.</span>
         </div>
       </form>
     </section>
@@ -86,13 +86,10 @@
         <a class="btn small" href="/">New review</a>
       </div>
       <p id="review-sub" class="lede">Keep this page open. You can also bookmark it and come back later.</p>
-      <div id="progress" class="card">
-        <ol class="steps">
-          <li data-step="extraction" data-s="pending"><span class="dot">1</span><span><div class="t">Extraction agent</div><div class="d">Pulling out rent, deposit, fees, dates, tenants and key clauses</div></span></li>
-          <li data-step="risk" data-s="pending"><span class="dot">2</span><span><div class="t">Risk agent</div><div class="d">Flagging risky clauses and Boulder occupancy concerns</div></span></li>
-          <li data-step="triage" data-s="pending"><span class="dot">3</span><span><div class="t">Triage agent</div><div class="d">Deciding on attorney review and writing your summary</div></span></li>
-          <li data-step="automation" data-s="pending"><span class="dot">4</span><span><div class="t">Follow-up</div><div class="d">Saving your review, queueing for an attorney if needed, and sending notifications</div></span></li>
-        </ol>
+      <div class="card">
+        <h2 style="margin-bottom:4px">Agent timeline</h2>
+        <p class="hint" style="margin:0 0 12px">Each agent chooses its own steps, like searching the lease, checking rules and flagging clauses. You can watch them happen here.</p>
+        <div id="timeline" aria-live="polite"></div>
       </div>
       <div id="review-error" class="error hidden" role="alert"></div>
       <div id="results"></div>

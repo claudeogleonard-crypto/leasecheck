@@ -1,52 +1,49 @@
-// Suggests the next open attorney appointment slot.
-// Attorney consult hours: Tuesday and Thursday afternoons, Mountain Time.
+// Attorney appointment slots come from data/attorney-slots.json (sample data).
+// Holds are stored in Blobs; `onlyIfNew` makes a hold atomic if two reviews finish at once.
+import slotData from "../../data/attorney-slots.json" with { type: "json" };
 import { appointmentsStore, now, type Slot } from "./store.mts";
 
-export const OFFICE_HOURS = {
-  timeZone: "America/Denver",
-  weekdays: [2, 4], // 0=Sun ... 2=Tue, 4=Thu
-  times: ["13:00", "13:45", "14:30", "15:15"],
-  durationMinutes: 40,
-  location: "CU Boulder Student Legal Services (UMC) or Zoom",
-  searchDays: 28,
-};
-
-/** Today's date (YYYY-MM-DD) in the office's time zone. */
-export function todayInZone(date = new Date(), timeZone = OFFICE_HOURS.timeZone) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+/** Current local date-time in the office time zone as "YYYY-MM-DDTHH:mm". */
+export function nowInZone(date = new Date(), timeZone = slotData.timeZone) {
+  const p = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .formatToParts(date)
+      .map((x) => [x.type, x.value]),
+  );
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`;
 }
 
-/** Candidate slots, starting the day after `fromDate`, in order. */
-export function candidateSlots(fromDate: string, hours = OFFICE_HOURS): Slot[] {
-  const [y, m, d] = fromDate.split("-").map(Number);
-  const out: Slot[] = [];
-  for (let i = 1; i <= hours.searchDays; i++) {
-    const day = new Date(Date.UTC(y, m - 1, d + i)); // calendar math only, so UTC is safe
-    if (!hours.weekdays.includes(day.getUTCDay())) continue;
-    const ymd = day.toISOString().slice(0, 10);
-    const dayLabel = day.toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
-    for (const t of hours.times) {
-      const [hh, mm] = t.split(":").map(Number);
-      const h12 = ((hh + 11) % 12) + 1;
-      const label = `${dayLabel} · ${h12}:${String(mm).padStart(2, "0")} ${hh < 12 ? "AM" : "PM"} MT`;
-      out.push({ id: `${ymd}T${t}`, label, durationMinutes: hours.durationMinutes, location: hours.location });
-    }
-  }
-  return out;
+export function toSlot(id: string): Slot {
+  const [ymd, t] = id.split("T");
+  const [y, m, d] = ymd.split("-").map(Number);
+  const [hh, mm] = t.split(":").map(Number);
+  const dayLabel = new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("en-US", { timeZone: "UTC", weekday: "short", month: "short", day: "numeric" });
+  const label = `${dayLabel} · ${((hh + 11) % 12) + 1}:${String(mm).padStart(2, "0")} ${hh < 12 ? "AM" : "PM"} MT`;
+  return { id, label, durationMinutes: slotData.durationMinutes, location: slotData.location };
 }
 
-/**
- * Atomically places a hold on the first free slot for this review.
- * `onlyIfNew` makes the claim safe if two reviews finish at the same time.
- */
+/** Future slots from the sample calendar, at least 12 hours out, in order. */
+export function futureSlotIds(date = new Date()) {
+  const cutoff = nowInZone(new Date(date.getTime() + 12 * 3600_000));
+  return slotData.slots.filter((s) => s > cutoff).sort();
+}
+
+export async function openSlots(limit = 5): Promise<Slot[]> {
+  const store = appointmentsStore();
+  const { blobs } = await store.list();
+  const taken = new Set(blobs.map((b) => b.key));
+  return futureSlotIds().filter((s) => !taken.has(s)).slice(0, limit).map(toSlot);
+}
+
+/** Holds the first free slot. Non-urgent cases leave the earliest day for urgent ones. */
 export async function holdNextSlot(reviewId: string, urgent: boolean): Promise<Slot | null> {
   const store = appointmentsStore();
-  // Non-urgent cases skip the first available day, leaving the earliest slots for urgent cases.
-  const slots = candidateSlots(todayInZone());
-  const firstDay = slots[0]?.id.slice(0, 10);
-  const ordered = urgent ? slots : [...slots.filter((s) => !s.id.startsWith(firstDay)), ...slots.filter((s) => s.id.startsWith(firstDay))];
-  for (const slot of ordered) {
-    const { modified } = await store.setJSON(slot.id, { reviewId, status: "held", heldAt: now(), slot }, { onlyIfNew: true });
+  const ids = futureSlotIds();
+  const firstDay = ids[0]?.slice(0, 10);
+  const ordered = urgent ? ids : [...ids.filter((s) => !s.startsWith(firstDay)), ...ids.filter((s) => s.startsWith(firstDay))];
+  for (const id of ordered) {
+    const slot = toSlot(id);
+    const { modified } = await store.setJSON(id, { reviewId, status: "held", heldAt: now(), slot }, { onlyIfNew: true });
     if (modified) return slot;
   }
   return null;

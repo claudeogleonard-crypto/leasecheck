@@ -1,0 +1,85 @@
+{
+  "_note": "SAMPLE DATA for the LeaseCheck demo. These are plain-language summaries, not legal advice, and may be incomplete or out of date. CU Boulder Student Legal Services must review them before LeaseCheck is used with students.",
+  "rules": [
+    {
+      "id": "security_deposit_return",
+      "title": "Security deposit return",
+      "keywords": ["deposit", "security deposit", "refund", "return", "deduction", "non-refundable", "wear and tear"],
+      "summary": "In Colorado, a landlord must return the security deposit with an itemized list of deductions within one month after the lease ends. The lease can extend this to no more than 60 days. Normal wear and tear cannot be deducted.",
+      "red_flags": ["Return deadline longer than 60 days", "Deposit labeled non-refundable", "Automatic deductions (cleaning, painting, re-keying) charged no matter the unit's condition", "No deadline stated at all"],
+      "source": "C.R.S. 38-12-103 (summary)"
+    },
+    {
+      "id": "late_fees",
+      "title": "Late fees",
+      "keywords": ["late fee", "late charge", "grace period", "past due"],
+      "summary": "In Colorado, a landlord cannot charge a late fee until rent is at least 7 days late. The fee cannot be more than $50 or 5% of the past-due rent, whichever is greater. A landlord cannot evict a tenant only for unpaid late fees.",
+      "red_flags": ["Late fee charged before day 8", "Fee above the greater of $50 or 5% of past-due rent", "Daily or escalating late fees", "Eviction threatened for unpaid late fees alone"],
+      "source": "C.R.S. 38-12-105 (summary)"
+    },
+    {
+      "id": "fees",
+      "title": "Move-in and recurring fees",
+      "keywords": ["fee", "fees", "administrative", "amenity", "application", "processing", "utility fee", "renewal fee", "transfer fee"],
+      "summary": "Fees on top of rent should be clearly listed with amounts. Colorado has added limits on some rental fees in recent years, and the rules change often. Students should ask what each fee pays for, whether it is refundable, and how much they will pay in total each month.",
+      "red_flags": ["Fees with no stated amount", "Fees set by the landlord 'as determined'", "Large non-refundable administrative or move-in fees", "Per-person monthly fees that add a lot to the real rent", "Flat utility charges that don't depend on usage"],
+      "source": "General guidance; verify current Colorado fee laws"
+    },
+    {
+      "id": "early_termination",
+      "title": "Ending the lease early",
+      "keywords": ["early termination", "break", "lease-break", "terminate", "re-letting", "remaining rent", "accelerat"],
+      "summary": "No Colorado law sets a standard lease-break fee. Colorado courts have generally said landlords must make reasonable efforts to re-rent the unit instead of charging the full remaining rent. Some tenants have special early-termination rights, for example survivors of domestic violence and military members.",
+      "red_flags": ["All remaining rent due at once (acceleration)", "Lease-break fee above about 2 months' rent", "Both a large fee and rent until re-rented", "No subletting or replacement-tenant option"],
+      "source": "Colorado case law on mitigation; C.R.S. 38-12-402 (summary)"
+    },
+    {
+      "id": "repairs_habitability",
+      "title": "Repairs and habitability",
+      "keywords": ["repair", "maintenance", "as-is", "habitab", "condition", "heat", "plumbing", "pest"],
+      "summary": "Colorado's warranty of habitability requires landlords to keep rentals safe and livable, including heat, water, plumbing, electricity and freedom from serious pests or mold. Tenants cannot waive this right in a lease. Tenants can be charged for damage they cause.",
+      "red_flags": ["Tenant accepts the unit 'as-is' and waives habitability claims", "Tenant responsible for all repairs regardless of cause", "Tenant responsible for major systems (roof, heating, plumbing)"],
+      "source": "C.R.S. 38-12-501 to 38-12-511 (summary)"
+    },
+    {
+      "id": "landlord_entry",
+      "title": "Landlord entry",
+      "keywords": ["entry", "enter", "access", "inspection", "notice"],
+      "summary": "Colorado has no single statute setting a notice period for landlord entry, but a standard lease promises reasonable notice (commonly 24 hours) except in emergencies, and entry for legitimate reasons only.",
+      "red_flags": ["Entry at any time without notice", "Entry for 'any purpose'"],
+      "source": "General guidance"
+    },
+    {
+      "id": "liability_and_attorney_fees",
+      "title": "Liability waivers and attorney fees",
+      "keywords": ["release", "indemnif", "negligence", "attorney fees", "jury", "waive"],
+      "summary": "Clauses that release the landlord from liability for its own negligence, or that make only the tenant pay attorney fees whatever the outcome, are one-sided and may not be enforceable. Clauses where the prevailing party recovers fees are common.",
+      "red_flags": ["Tenant releases landlord from liability for the landlord's own negligence", "Tenant pays landlord's attorney fees regardless of outcome", "Jury trial waiver", "Landlord can change lease terms by posting notice"],
+      "source": "General guidance"
+    },
+    {
+      "id": "joint_liability",
+      "title": "Joint and several liability",
+      "keywords": ["jointly", "severally", "joint and several", "each tenant"],
+      "summary": "Joint and several liability means each roommate can be held responsible for the whole rent and all damages, not just their share. It is legal and common in Boulder student leases, but it matters more when there are many roommates.",
+      "red_flags": ["Joint liability combined with many tenants", "Joint liability plus no subletting or replacement option"],
+      "source": "General guidance"
+    },
+    {
+      "id": "boulder_occupancy",
+      "title": "Boulder occupancy limits",
+      "keywords": ["occupancy", "occupant", "unrelated", "guests", "persons", "reside"],
+      "summary": "Colorado HB24-1007 (2024) stops cities from limiting how many unrelated people can live together. Boulder has stopped enforcing its old 3-or-4 unrelated person limits. Occupancy can still be limited for health and safety reasons, such as building and fire codes, bedroom size, emergency exits (egress) from bedrooms, and the property's rental license.",
+      "red_flags": ["More than about 2 people per bedroom", "People sleeping in rooms that aren't legal bedrooms (e.g. basements without egress windows)", "Lease asks tenants to hide or misstate how many people live there", "Lease cites outdated unrelated-person limits or penalizes tenants for them", "Very strict guest limits with large fines"],
+      "source": "HB24-1007; City of Boulder occupancy page (summary)"
+    },
+    {
+      "id": "rental_license",
+      "title": "Boulder rental license",
+      "keywords": ["rental license", "license", "licensing"],
+      "summary": "Long-term rentals in the City of Boulder must have a rental license, which includes safety inspections. Students can ask the landlord for the license number and look it up with the City of Boulder.",
+      "red_flags": ["Landlord refuses to state the license", "Lease says the owner makes no representation about licensing"],
+      "source": "Boulder Revised Code, rental licensing (summary)"
+    }
+  ]
+}

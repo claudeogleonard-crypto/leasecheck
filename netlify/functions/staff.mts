@@ -31,15 +31,11 @@ export default async (req: Request, context: Context) => {
     queue.sort((a, b) => a.priority - b.priority || a.createdAt.localeCompare(b.createdAt));
     reviews.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     notifications.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-    const done = reviews.filter((r) => r.risk);
+    const rated = (x: string) => reviews.filter((r) => r.risk?.rating === x).length;
     const stats = {
       totalReviews: reviews.length,
       openQueue: queue.filter((q) => q.status !== "resolved").length,
-      byRisk: {
-        low: done.filter((r) => r.risk!.overall_risk === "low").length,
-        medium: done.filter((r) => r.risk!.overall_risk === "medium").length,
-        high: done.filter((r) => r.risk!.overall_risk === "high").length,
-      },
+      byRisk: { low: rated("low"), medium: rated("medium"), high: rated("high") },
       failed: reviews.filter((r) => r.status === "failed").length,
     };
     const reviewSummaries = reviews.map((r) => ({
@@ -47,10 +43,9 @@ export default async (req: Request, context: Context) => {
       createdAt: r.createdAt,
       status: r.status,
       studentName: r.input.studentName,
-      address: r.extraction?.property_address ?? null,
-      risk: r.risk?.overall_risk ?? null,
-      riskScore: r.risk?.risk_score ?? null,
-      attorney: r.triage?.attorney_review_needed ?? null,
+      address: r.extraction?.fields.property_address?.value ?? null,
+      risk: r.risk ? r.risk.rating ?? "needs_review" : null,
+      route: r.triage?.route ?? null,
       queued: r.automation?.queued ?? null,
       error: r.error ?? null,
     }));

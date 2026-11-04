@@ -1,34 +1,35 @@
 # LeaseCheck
 
-AI-assisted lease review for CU Boulder Off-Campus Housing. Students paste or upload a lease. Three Claude agents review it on the server. A follow-up automation queues risky leases for a Student Legal Services attorney.
+AI-assisted lease review for CU Boulder Off-Campus Housing. Students paste or upload a lease, and three tool-using Claude agents review it on the server. A follow-up automation queues risky leases for a Student Legal Services attorney.
 
 > LeaseCheck gives educational guidance, not legal advice.
 
 ## How it works
 
+LeaseCheck uses three **tool-using agents**. Each one is a loop in which Claude picks its next tool call, sees the result, and keeps going until it calls its finish tool.
+
 ```
-Student page ──POST /api/reviews──▶ reviews-create   (validates input, stores it, returns 202 + id)
-      ▲                                   │ internal call
-      │ polls /api/reviews/:id            ▼
-      │                            review-pipeline   (background function, up to 15 min)
-      │                              1. Extraction agent → rent, deposit, fees, term, tenants, clauses (JSON)
-      │                              2. Risk agent       → flagged clauses, Boulder occupancy, low/medium/high
-      │                              3. Triage agent     → attorney yes/no, plain-language summary, landlord questions
-      │                                   │ "review finished" event
-      │                                   ▼
-      └──────────────────────────── review-completed  (background automation, idempotent, retried on failure)
-                                     • save the record
-                                     • add high-risk leases (and any lease triage sends for review) to the attorney queue
-                                     • hold the next open attorney slot (Tue/Thu afternoons, MT)
-                                     • notify staff (email/webhook) and the student (email), and log every notification
-Staff dashboard ──/api/staff/*──▶ staff             (password-protected: queue, reviews, notifications, slot confirmation)
+Student page ─POST /api/reviews──────▶ reviews-create     stores lease text (PDFs converted with unpdf) → id
+      │
+      ├─POST /api/agents/extraction──▶ agent-extraction   ┐ each is its own Netlify Function,
+      ├─POST /api/agents/risk────────▶ agent-risk         │ called in sequence by the browser;
+      ├─POST /api/agents/triage──────▶ agent-triage       ┘ each streams its steps live (NDJSON)
+      │                                      │ triage finished
+      │                                      ▼
+      └─polls /api/reviews/:id ◀───── review-completed    background automation: save → queue → slot → notify
 ```
 
-- **The API key stays on the server.** It is read with `Netlify.env.get("ANTHROPIC_API_KEY")` inside functions only. The browser never sees it.
-- **Model:** `claude-opus-5-5` with adaptive thinking, structured JSON outputs (strict schemas in `netlify/lib/schemas.mts`), streaming, and server-side refusal fallback (`fallbacks: "default"`).
-- **PDFs** are sent to Claude as native document blocks, so scanned PDFs work too.
-- **Policy guardrail:** if the risk is high or any flag is high severity, the code forces `attorney_review_needed = true`, whatever the model says.
-- **Prompt-injection hardening:** lease text is treated as untrusted data. The high-risk sample includes an injection attempt to test this.
+| Agent | Tools | Finishes when |
+|---|---|---|
+| Extraction | `search_lease`, `record_field`, `flag_unclear`, `finish_extraction` | rent, deposit, fees, lease length, tenants and bedrooms are each recorded with a quote or flagged unclear, plus at least two notable clauses |
+| Risk | `lookup_rule` (reads `data/rules.json`), `check_occupancy`, `search_lease`, `add_flag`, `set_risk_rating` | it sets a rating (at least one rule checked; the rating can't be lower than the worst flag) |
+| Triage | `get_flags`, `get_attorney_availability` (reads `data/attorney-slots.json`), `decide_route`, `write_student_summary`, `draft_landlord_questions`, `finish_triage` | route, summary and questions are all saved |
+
+- **Shared loop:** `runAgent(systemPrompt, tools, input)` in `netlify/lib/agent-loop.mts`. It calls the Messages API with the tools, runs every `tool_use`, returns all `tool_result`s in one message, and repeats. It stops at the finish tool, after **8 turns**, or at a **45-second time limit**; the last two return "needs human review". Every step is saved to a trace that the UI shows as a timeline.
+- **Guardrails in the tools:** quotes must actually appear in the lease, or the tool returns an error and the agent searches again. Finish tools reject incomplete work. `decide_route` refuses `summary_only` when the policy requires an attorney: any medium or high rating, any unclear field, or an agent that didn't finish. The code enforces the same policy again after the agent returns.
+- **Model:** one constant in `netlify/lib/config.mts`: `MODEL = "claude-haiku-5-5"`, effort `low`. Change it to `"claude-sonnet-5-5"` for stronger, slower agents.
+- **API key:** read from `process.env.ANTHROPIC_API_KEY` by the SDK, inside functions only. It is never logged or sent to the browser.
+- **Timeouts:** Netlify synchronous functions stop at 60 seconds. Each agent runs in its own request, and the loop won't start a new turn after 45 seconds. If an agent hits that limit, the review is routed to an attorney rather than failing. If that happens often (for example with Sonnet), move the agents to background functions with polling.
 - **Storage:** Netlify Blobs (`reviews`, `lease-inputs`, `attorney-queue`, `appointments`, `notifications`). Slot holds use `onlyIfNew`, so two reviews can't claim the same slot.
 
 ## Project layout
@@ -39,9 +40,12 @@ public/                 static site (no build step)
   staff.html, staff.js  staff dashboard (/staff)
   render.js, styles.css shared rendering and styles (light and dark)
   samples/              clean, medium-risk, and high-risk sample leases
-netlify/functions/      reviews-create, review-status, review-pipeline (bg), review-completed (bg), staff
-netlify/lib/            agents, prompts, schemas, store, scheduling, notify, automation, http helpers
-tests/                  unit tests for scheduling, triage rules, queue logic, schemas
+data/                   rules.json and attorney-slots.json (sample data)
+netlify/functions/      reviews-create, agent-extraction, agent-risk, agent-triage, review-status,
+                        review-completed (background automation), staff
+netlify/lib/            agent-loop, agents/{extraction,risk,triage}, lease-search, config,
+                        store, scheduling, notify, automation, http helpers
+tests/                  agent loop (scripted fake client), search, quotes, occupancy, routing, slots
 ```
 
 ## Local development
@@ -90,6 +94,6 @@ All three are on the student page as "Try a sample" buttons.
 ## Notes and next steps for production
 
 - **Staff auth** is a shared password. For production, use Netlify Identity or university SSO.
-- **Legal content** in `netlify/lib/prompts.mts` reflects Colorado law as of late 2026: C.R.S. 38-12-105 late fees, 38-12-103 deposits, the warranty of habitability, and HB24-1007, which ended unrelated-occupant caps. Have Student Legal Services review it periodically.
+- **Legal content** in `data/rules.json` and the agent prompts reflects Colorado law as of late 2026: C.R.S. 38-12-105 late fees, 38-12-103 deposits, the warranty of habitability, and HB24-1007, which ended unrelated-occupant caps. Have Student Legal Services review it periodically.
 - **Privacy:** leases contain personal information and are stored in Blobs, so set a retention policy. Site-wide Blobs stores are shared with deploy previews, so don't submit test leases on previews.
-- **Cost:** each review is three Opus calls. `reviews-create` is rate-limited to 10 requests per minute per IP.
+- **Cost:** each review is about 6 to 12 Haiku calls. Submissions are rate-limited per IP.

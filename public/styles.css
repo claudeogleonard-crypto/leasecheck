@@ -125,6 +125,31 @@ textarea { min-height: 260px; resize: vertical; font-family: ui-monospace, "SF M
 .error { color: var(--high); background: var(--high-bg); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
 .notice { background: var(--surface-2); border-radius: 8px; padding: 10px 12px; font-size: 13.5px; color: var(--muted); }
 
+/* Agent timeline */
+.tl-agent { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; }
+.tl-agent[data-s="pending"] { opacity: 0.6; }
+.tl-head { display: flex; gap: 12px; align-items: flex-start; }
+.tl-head .t { font-weight: 700; }
+.tl-head .d { color: var(--muted); font-size: 13px; }
+.tl-head .dot { margin-top: 2px; }
+.tl-agent[data-s="running"] .dot { border-color: var(--accent); border-top-color: transparent; animation: spin 0.9s linear infinite; }
+.tl-agent[data-s="done"] .dot { background: var(--low); border-color: var(--low); }
+.tl-agent[data-s="failed"] .dot { background: var(--high); border-color: var(--high); }
+.tl-status { white-space: nowrap; }
+.tl-steps { list-style: none; margin: 8px 0 0 13px; padding: 0 0 0 20px; border-left: 2px solid var(--border); font-size: 14px; }
+.tl-steps:empty { display: none; }
+.tl-step { display: flex; gap: 8px; padding: 3px 0; overflow-wrap: anywhere; animation: fadein .25s ease-out; }
+.tl-icon { flex: none; width: 16px; color: var(--muted); }
+.tl-step.note { color: var(--muted); font-style: italic; }
+.tl-step.warn { color: var(--medium); font-weight: 600; }
+.tl-step.retry { color: var(--muted); }
+.tl-step.sev-high { color: var(--high); font-weight: 600; }
+.tl-step.sev-medium { color: var(--medium); font-weight: 600; }
+.tl-step.sev-low { color: var(--low); }
+.tl-error { margin-top: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+@keyframes fadein { from { opacity: 0; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .tl-step { animation: none; } .tl-agent[data-s="running"] .dot { animation: none; border-style: dotted; } }
+
 /* Progress steps */
 .steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .steps li { display: flex; gap: 12px; align-items: center; }
