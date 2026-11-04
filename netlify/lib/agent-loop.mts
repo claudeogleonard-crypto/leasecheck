@@ -38,7 +38,8 @@ const short = (s: string, n = 240) => (s.length > n ? `${s.slice(0, n - 1)}…` 
 let sharedClient: Anthropic | null = null;
 function client() {
   // The SDK reads ANTHROPIC_API_KEY from process.env. It is never logged or returned to the browser.
-  sharedClient ??= new Anthropic({ timeout: REQUEST_TIMEOUT_MS, maxRetries: 1 });
+  // No automatic retries: a retry could push the function past Netlify's time limit.
+  sharedClient ??= new Anthropic({ timeout: REQUEST_TIMEOUT_MS, maxRetries: 0 });
   return sharedClient;
 }
 
@@ -73,16 +74,23 @@ export async function runAgent(
   for (let turn = 1; turn <= MAX_TURNS; turn++) {
     if (Date.now() - started > AGENT_DEADLINE_MS) return stop("time limit reached", turn - 1);
 
-    const response = await anthropic.messages.create({
-      model: MODEL,
-      max_tokens: 8000,
-      system: systemPrompt,
-      tools: toolDefs,
-      tool_choice: { type: "auto" },
-      output_config: { effort: EFFORT },
-      cache_control: { type: "ephemeral" },
-      messages,
-    });
+    let response: Anthropic.Message;
+    try {
+      response = await anthropic.messages.create({
+        model: MODEL,
+        max_tokens: 8000,
+        system: systemPrompt,
+        tools: toolDefs,
+        tool_choice: { type: "auto" },
+        output_config: { effort: EFFORT },
+        cache_control: { type: "ephemeral" },
+        messages,
+      });
+    } catch (e) {
+      // A slow model call ends the run safely instead of letting the function get cut off.
+      if (e instanceof Anthropic.APIConnectionTimeoutError) return stop("a model call took too long", turn);
+      throw e;
+    }
     // Append the full content (including thinking blocks) unchanged, as the API requires.
     messages.push({ role: "assistant", content: response.content });
 

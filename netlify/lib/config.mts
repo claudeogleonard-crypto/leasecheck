@@ -7,9 +7,8 @@ export const EFFORT = "low" as const;
 // The loop stops after this many model turns and returns "needs human review".
 export const MAX_TURNS = 8;
 
-// Netlify synchronous functions stop at 60s. The loop won't start a new turn after this,
-// so the function always has time to save its result and respond.
-export const AGENT_DEADLINE_MS = 45_000;
-
-// Per-request timeout for one Messages API call.
-export const REQUEST_TIMEOUT_MS = 25_000;
+// Netlify cuts this site's functions off at 30s (measured on the live deploy). The loop won't
+// start a new turn after 18s, and each model call times out at 10s with no retry, so a run
+// always ends (worst case about 28s) with time to save its result.
+export const AGENT_DEADLINE_MS = 18_000;
+export const REQUEST_TIMEOUT_MS = 10_000;

@@ -5,7 +5,8 @@ import { runExtraction } from "./agents/extraction.mts";
 import { runRisk } from "./agents/risk.mts";
 import { runTriage } from "./agents/triage.mts";
 import type { TraceStep } from "./agent-loop.mts";
-import { callInternal, error } from "./http.mts";
+import { runReviewCompletedAutomation } from "./automation.mts";
+import { error } from "./http.mts";
 import { getLeaseInput, getReview, now, saveReview, type AgentName, type ReviewRecord } from "./store.mts";
 
 const ORDER: AgentName[] = ["extraction", "risk", "triage"];
@@ -58,10 +59,9 @@ export async function handleAgent(agent: AgentName, req: Request): Promise<Respo
         if (agent === "triage") r.status = "reviewed";
         await saveReview(r);
         if (agent === "triage") {
-          // Hand off to the separate automation function and wait for it (about a second).
+          // Triage is done: run the separate review-completed automation (about a second).
           try {
-            await callInternal(req, "/api/internal/review-completed", { id });
-            Object.assign(r, await getReview(id)); // pick up the automation result for the final event
+            Object.assign(r, await runReviewCompletedAutomation(id, new URL(req.url).origin));
           } catch (e) {
             console.error("automation failed", e);
             r.steps.automation = { status: "failed", error: "Follow-up automation failed." };

@@ -16,7 +16,7 @@ Student page ─POST /api/reviews──────▶ reviews-create     stores
       ├─POST /api/agents/triage──────▶ agent-triage       ┘ each streams its steps live (NDJSON)
       │                                      │ triage finished
       │                                      ▼
-      └─(result in triage stream) ◀── review-completed    separate automation function: save → queue → slot → notify
+      └─(result in triage stream) ◀── automation          separate module run after triage: save → queue → slot → notify
 ```
 
 | Agent | Tools | Finishes when |
@@ -25,11 +25,11 @@ Student page ─POST /api/reviews──────▶ reviews-create     stores
 | Risk | `lookup_rule` (reads `data/rules.json`), `check_occupancy`, `search_lease`, `add_flag`, `set_risk_rating` | it sets a rating (at least one rule checked; the rating can't be lower than the worst flag) |
 | Triage | `get_flags`, `get_attorney_availability` (reads `data/attorney-slots.json`), `decide_route`, `write_student_summary`, `draft_landlord_questions`, `finish_triage` | route, summary and questions are all saved |
 
-- **Shared loop:** `runAgent(systemPrompt, tools, input)` in `netlify/lib/agent-loop.mts`. It calls the Messages API with the tools, runs every `tool_use`, returns all `tool_result`s in one message, and repeats. It stops at the finish tool, after **8 turns**, or at a **45-second time limit**; the last two return "needs human review". Every step is saved to a trace that the UI shows as a timeline.
+- **Shared loop:** `runAgent(systemPrompt, tools, input)` in `netlify/lib/agent-loop.mts`. It calls the Messages API with the tools, runs every `tool_use`, returns all `tool_result`s in one message, and repeats. It stops at the finish tool, after **8 turns**, or at an **18-second time limit**; the last two return "needs human review". Every step is saved to a trace that the UI shows as a timeline.
 - **Guardrails in the tools:** quotes must actually appear in the lease, or the tool returns an error and the agent searches again. Finish tools reject incomplete work. `decide_route` refuses `summary_only` when the policy requires an attorney: any medium or high rating, any unclear field, or an agent that didn't finish. The code enforces the same policy again after the agent returns.
 - **Model:** one constant in `netlify/lib/config.mts`: `MODEL = "claude-haiku-5-5"`, effort `low`. Change it to `"claude-sonnet-5-5"` for stronger, slower agents.
 - **API key:** read from `process.env.ANTHROPIC_API_KEY` by the SDK, inside functions only. It is never logged or sent to the browser.
-- **Timeouts:** Netlify synchronous functions stop at 60 seconds. Each agent runs in its own request, and the loop won't start a new turn after 45 seconds. If an agent hits that limit, the review is routed to an attorney rather than failing. If that happens often (for example with Sonnet), move the agents to background functions with polling.
+- **Timeouts:** this site's functions are cut off at about 30 seconds (measured on the live deploy). Each agent runs in its own request. The loop won't start a new turn after 18 seconds, and each model call times out at 10 seconds with no retry, so a run always ends cleanly. If an agent runs out of time, the review is routed to an attorney ("needs human review") rather than failing. If that happens often (for example with Sonnet), move the agents to background functions with polling.
 - **Storage:** Netlify Blobs (`reviews`, `lease-inputs`, `attorney-queue`, `appointments`, `notifications`). Slot holds use `onlyIfNew`, so two reviews can't claim the same slot.
 
 ## Project layout
@@ -42,7 +42,7 @@ public/                 static site (no build step)
   samples/              clean, medium-risk, and high-risk sample leases
 data/                   rules.json and attorney-slots.json (sample data)
 netlify/functions/      reviews-create, agent-extraction, agent-risk, agent-triage, review-status,
-                        review-completed (automation), staff
+                        staff
 netlify/lib/            agent-loop, agents/{extraction,risk,triage}, lease-search, config,
                         store, scheduling, notify, automation, http helpers
 tests/                  agent loop (scripted fake client), search, quotes, occupancy, routing, slots
@@ -74,7 +74,7 @@ npm test && npm run typecheck
 2. Under **Site configuration → Environment variables**, add these with the **Functions** scope:
    - `ANTHROPIC_API_KEY` (required)
    - `STAFF_PASSWORD` (required for `/staff`)
-   - Optional: `INTERNAL_SECRET`, `RESEND_API_KEY` + `NOTIFY_FROM_EMAIL` + `STAFF_NOTIFY_EMAIL` (email), `NOTIFY_WEBHOOK_URL` (Slack/Teams)
+   - Optional: `RESEND_API_KEY` + `NOTIFY_FROM_EMAIL` + `STAFF_NOTIFY_EMAIL` (email), `NOTIFY_WEBHOOK_URL` (Slack/Teams)
 3. Deploy. Environment variable changes need a redeploy.
 
 Or deploy from the CLI: `npx netlify-cli deploy --prod`.

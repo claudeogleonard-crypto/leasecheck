@@ -21,7 +21,7 @@ Steps (you choose the order and can do several in one turn):
 4. Call write_student_summary: 120-200 words at about an 8th-grade reading level, written to the student ("This lease..."). Cover the overall picture, the main risks, and what looks fine. Never call the lease "legal" or "safe". If it's routed to an attorney, say staff will contact them to confirm an appointment.
 5. Call draft_landlord_questions: 4-7 specific, polite questions tied to the flags and unclear items.
 6. Call finish_triage.
-You have at most 8 turns.`;
+Work fast. In turn 1, call get_flags and get_attorney_availability together. In turn 2, call decide_route, write_student_summary, draft_landlord_questions and finish_triage together.`;
 
 export async function runTriage(extraction: ExtractionResult, risk: RiskResult, onStep: (s: TraceStep) => void | Promise<void>) {
   const result: TriageResult = { status: "finished", route: "attorney_review", route_reason: "", student_summary: "", landlord_questions: [], policy_override: null };
