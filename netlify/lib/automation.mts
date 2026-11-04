@@ -1,5 +1,5 @@
 // Review-completed automation (separate from the agents): save, queue, attach slot, notify.
-// Idempotent: Netlify retries background functions on failure, so each step checks whether it already ran.
+// Idempotent: each step checks whether it already ran, so a retry is safe.
 import { holdNextSlot } from "./scheduling.mts";
 import { notify, staffEmail } from "./notify.mts";
 import { getReview, saveReview, queueStore, now, type QueueItem, type ReviewRecord } from "./store.mts";

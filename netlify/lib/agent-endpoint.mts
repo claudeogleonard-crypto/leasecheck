@@ -58,12 +58,13 @@ export async function handleAgent(agent: AgentName, req: Request): Promise<Respo
         if (agent === "triage") r.status = "reviewed";
         await saveReview(r);
         if (agent === "triage") {
-          // Hand off to the separate automation (background function).
+          // Hand off to the separate automation function and wait for it (about a second).
           try {
             await callInternal(req, "/api/internal/review-completed", { id });
+            Object.assign(r, await getReview(id)); // pick up the automation result for the final event
           } catch (e) {
-            console.error("automation trigger failed", e);
-            r.steps.automation = { status: "failed", error: "Could not start follow-up automation." };
+            console.error("automation failed", e);
+            r.steps.automation = { status: "failed", error: "Follow-up automation failed." };
             await saveReview(r);
           }
         }

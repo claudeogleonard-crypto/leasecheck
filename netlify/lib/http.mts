@@ -16,17 +16,22 @@ export function safeEqual(a: string, b: string) {
 
 /** Shared secret for internal function-to-function calls. */
 export function internalSecret() {
-  const explicit = Netlify.env.get("INTERNAL_SECRET");
+  const explicit = process.env.INTERNAL_SECRET;
   if (explicit) return explicit;
-  const key = Netlify.env.get("ANTHROPIC_API_KEY") || "";
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error("No INTERNAL_SECRET or ANTHROPIC_API_KEY to derive one from.");
   return createHash("sha256").update(`leasecheck-internal:${key}`).digest("hex");
 }
 
 export function isInternal(req: Request) {
-  return safeEqual(req.headers.get("x-internal-secret") || "", internalSecret());
+  try {
+    return safeEqual(req.headers.get("x-internal-secret") || "", internalSecret());
+  } catch {
+    return false; // never accept internal calls without a real secret
+  }
 }
 
-/** Calls another of this site's functions (used to chain into background functions). */
+/** Calls another of this site's functions server-to-server. */
 export async function callInternal(req: Request, path: string, body: unknown) {
   const url = new URL(path, req.url);
   const res = await fetch(url, {
@@ -34,7 +39,7 @@ export async function callInternal(req: Request, path: string, body: unknown) {
     headers: { "content-type": "application/json", "x-internal-secret": internalSecret() },
     body: JSON.stringify(body),
   });
-  if (!res.ok && res.status !== 202) throw new Error(`Internal call to ${path} failed: HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`Internal call to ${path} failed: HTTP ${res.status}`);
 }
 
 /** Staff auth: shared password from STAFF_PASSWORD, sent in the x-staff-key header. */

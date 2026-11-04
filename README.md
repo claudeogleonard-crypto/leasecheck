@@ -16,7 +16,7 @@ Student page ─POST /api/reviews──────▶ reviews-create     stores
       ├─POST /api/agents/triage──────▶ agent-triage       ┘ each streams its steps live (NDJSON)
       │                                      │ triage finished
       │                                      ▼
-      └─polls /api/reviews/:id ◀───── review-completed    background automation: save → queue → slot → notify
+      └─(result in triage stream) ◀── review-completed    separate automation function: save → queue → slot → notify
 ```
 
 | Agent | Tools | Finishes when |
@@ -42,7 +42,7 @@ public/                 static site (no build step)
   samples/              clean, medium-risk, and high-risk sample leases
 data/                   rules.json and attorney-slots.json (sample data)
 netlify/functions/      reviews-create, agent-extraction, agent-risk, agent-triage, review-status,
-                        review-completed (background automation), staff
+                        review-completed (automation), staff
 netlify/lib/            agent-loop, agents/{extraction,risk,triage}, lease-search, config,
                         store, scheduling, notify, automation, http helpers
 tests/                  agent loop (scripted fake client), search, quotes, occupancy, routing, slots
