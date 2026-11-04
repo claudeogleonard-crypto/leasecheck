@@ -7,8 +7,8 @@ export const EFFORT = "low" as const;
 // The loop stops after this many model turns and returns "needs human review".
 export const MAX_TURNS = 8;
 
-// Netlify cuts this site's functions off at 30s (measured on the live deploy). The loop won't
-// start a new turn after 18s, and each model call times out at 10s with no retry, so a run
-// always ends (worst case about 28s) with time to save its result.
-export const AGENT_DEADLINE_MS = 18_000;
-export const REQUEST_TIMEOUT_MS = 10_000;
+// Netlify cuts this site's functions off at 30s (measured on the live deploy). One large agent
+// turn can take 10-17s, so: no new turn after 10s, each model call times out at 18s with no retry.
+// Worst case about 28s, leaving time to save the result.
+export const AGENT_DEADLINE_MS = 10_000;
+export const REQUEST_TIMEOUT_MS = 18_000;
