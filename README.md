@@ -85,7 +85,7 @@ Without email or webhook settings, notifications are still recorded and shown on
 | File | Expected result |
 |---|---|
 | `public/samples/clean-lease.txt` | Low risk: Colorado-compliant late fee, 30-day deposit return, individual liability, rental license listed |
-| `public/samples/medium-risk-lease.txt` | Medium risk: joint liability for 4 people, flat utility fee, 90-day auto-renewal, 2-month lease-break fee, mandatory carpet charge, outdated unrelated-person clause |
+| `public/samples/medium-risk-lease.txt` | Medium risk: joint liability for 4 people, flat utility fee, non-refundable admin fee, 90-day auto-renewal, re-letting fee plus rent until re-rented, tenant pays minor repairs, outdated unrelated-person clause |
 | `public/samples/high-risk-lease.txt` | High risk: habitability waiver, day-2 escalating late fees, non-refundable deposit, 90-day deposit return, 7 people in 3 bedrooms plus basement, instruction to conceal occupants, unlimited entry, injection attempt |
 
 All three are on the student page as "Try a sample" buttons.
